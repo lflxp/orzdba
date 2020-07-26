@@ -175,25 +175,25 @@ type basic struct {
 	Key_writes              int
 	Select_scan             string
 	//半同步
-	Rpl_semi_sync_master_net_avg_wait_time int
-	Rpl_semi_sync_master_no_times          int
-	Rpl_semi_sync_master_no_tx             int
-	Rpl_semi_sync_master_status            string
-	Rpl_semi_sync_master_tx_avg_wait_time  int
-	Rpl_semi_sync_master_wait_sessions     int
-	Rpl_semi_sync_master_yes_tx            int
-	Rpl_semi_sync_slave_status             string
-	rpl_semi_sync_master_timeout           string
-	//Slave状态监控
-	Master_Host           string
-	Master_User           string
-	Master_Port           string
-	Slave_IO_Running      string
-	Slave_SQL_Running     string
-	Master_Server_Id      string
-	Seconds_Behind_Master int
-	Read_Master_Log_Pos   int
-	Exec_Master_Log_Pos   int
+	Rpl_semi_sync_main_net_avg_wait_time int
+	Rpl_semi_sync_main_no_times          int
+	Rpl_semi_sync_main_no_tx             int
+	Rpl_semi_sync_main_status            string
+	Rpl_semi_sync_main_tx_avg_wait_time  int
+	Rpl_semi_sync_main_wait_sessions     int
+	Rpl_semi_sync_main_yes_tx            int
+	Rpl_semi_sync_subordinate_status             string
+	rpl_semi_sync_main_timeout           string
+	//Subordinate状态监控
+	Main_Host           string
+	Main_User           string
+	Main_Port           string
+	Subordinate_IO_Running      string
+	Subordinate_SQL_Running     string
+	Main_Server_Id      string
+	Seconds_Behind_Main int
+	Read_Main_Log_Pos   int
+	Exec_Main_Log_Pos   int
 }
 
 // type mysql struct {
@@ -209,7 +209,7 @@ type flags struct {
 	swap          bool   //打印swap info
 	disk          string //打印Disk info
 	net           string // 打印net info
-	slave         bool   // 打印slave info
+	subordinate         bool   // 打印subordinate info
 	username      string //mysql用户名
 	password      string //mysql密码
 	host          string //mysql连接主机
@@ -249,7 +249,7 @@ func (e *flags) init() {
 	swap := flag.Bool("s", false, "打印swap info")
 	disk := flag.String("d", "none", "打印Disk info")
 	net := flag.String("n", "none", "打印net info")
-	slave := flag.Bool("slave", false, "打印Slave info")
+	subordinate := flag.Bool("subordinate", false, "打印Subordinate info")
 	username := flag.String("u", "root", "mysql用户名")
 	password := flag.String("p", "system", "mysql密码")
 	host := flag.String("H", "127.0.0.1", "Mysql连接主机，默认127.0.0.1")
@@ -284,7 +284,7 @@ func (e *flags) init() {
 	e.swap = *swap
 	e.disk = *disk
 	e.net = *net
-	e.slave = *slave
+	e.subordinate = *subordinate
 	e.username = *username
 	e.password = *password
 	e.host = *host
@@ -333,7 +333,7 @@ func GetValue() map[string]interface{} {
 		"swap":           u.swap,
 		"disk":           u.disk,
 		"net":            u.net,
-		"slave":          u.slave,
+		"subordinate":          u.subordinate,
 		"username":       u.username,
 		"password":       u.password,
 		"host":           u.host,
@@ -447,14 +447,14 @@ func createCommand(info map[string]interface{}, count int) basic {
 		ss.var_innodb_flush_method = innodb_flush_method_string
 
 		//semi
-		semi_tmp := "mysql -u" + info["username"].(string) + " -p" + info["password"].(string) + " --host=" + info["host"].(string) + " --socket=" + info["socket"].(string) + " --port=" + info["port"].(string) + " -e 'show variables'|grep -E -w 'rpl_semi_sync_master_timeout'|awk '{print $2}'"
+		semi_tmp := "mysql -u" + info["username"].(string) + " -p" + info["password"].(string) + " --host=" + info["host"].(string) + " --socket=" + info["socket"].(string) + " --port=" + info["port"].(string) + " -e 'show variables'|grep -E -w 'rpl_semi_sync_main_timeout'|awk '{print $2}'"
 		semi_string := execCommand(semi_tmp)
 		semi_string = strings.Replace(semi_string, "\n", "", -1)
 
-		ss.rpl_semi_sync_master_timeout = semi_string
+		ss.rpl_semi_sync_main_timeout = semi_string
 
 		// //mysql global status
-		innodb_cmd := "mysql -u" + info["username"].(string) + " -p" + info["password"].(string) + " --host=" + info["host"].(string) + " --socket=" + info["socket"].(string) + " --port=" + info["port"].(string) + " -e 'show global status'|grep -w -E 'Max_used_connections|Aborted_connects|Aborted_clients|Select_full_join|Binlog_cache_disk_use|Binlog_cache_use|Opened_tables|Connections|Qcache_hits|Handler_read_first|Handler_read_key|Handler_read_next|Handler_read_prev|Handler_read_rnd|Handler_read_rnd_next|Handler_rollback|Created_tmp_tables|Created_tmp_disk_tables|Slow_queries|Key_read_requests|Key_reads|Key_write_requests|Key_writes|Select_scan|Rpl_semi_sync_master_status|Rpl_semi_sync_slave_status'|awk '{print $2}'|xargs echo|sed 's/[[:space:]]/,/g'"
+		innodb_cmd := "mysql -u" + info["username"].(string) + " -p" + info["password"].(string) + " --host=" + info["host"].(string) + " --socket=" + info["socket"].(string) + " --port=" + info["port"].(string) + " -e 'show global status'|grep -w -E 'Max_used_connections|Aborted_connects|Aborted_clients|Select_full_join|Binlog_cache_disk_use|Binlog_cache_use|Opened_tables|Connections|Qcache_hits|Handler_read_first|Handler_read_key|Handler_read_next|Handler_read_prev|Handler_read_rnd|Handler_read_rnd_next|Handler_rollback|Created_tmp_tables|Created_tmp_disk_tables|Slow_queries|Key_read_requests|Key_reads|Key_write_requests|Key_writes|Select_scan|Rpl_semi_sync_main_status|Rpl_semi_sync_subordinate_status'|awk '{print $2}'|xargs echo|sed 's/[[:space:]]/,/g'"
 
 		innodb_string := execCommand(innodb_cmd)
 		innodb_string = strings.Replace(innodb_string, "\n", "", -1)
@@ -484,8 +484,8 @@ func createCommand(info map[string]interface{}, count int) basic {
 		ss.Opened_tables = innodb_result[19]
 		ss.Qcache_hits, _ = strconv.Atoi(innodb_result[20])
 		if lens == 26 {
-			ss.Rpl_semi_sync_master_status = innodb_result[21]
-			ss.Rpl_semi_sync_slave_status = innodb_result[22]
+			ss.Rpl_semi_sync_main_status = innodb_result[21]
+			ss.Rpl_semi_sync_subordinate_status = innodb_result[22]
 			ss.Select_full_join = innodb_result[23]
 			ss.Select_scan = innodb_result[24]
 			ss.Slow_queries = innodb_result[25]
@@ -495,19 +495,19 @@ func createCommand(info map[string]interface{}, count int) basic {
 			ss.Slow_queries = innodb_result[23]
 		}
 
-		slave_cmd := "mysql -u" + info["username"].(string) + " -p" + info["password"].(string) + " --host=" + info["host"].(string) + " --socket=" + info["socket"].(string) + " --port=" + info["port"].(string) + " -e 'show slave status\\G'|grep -E -w 'Master_Host|Master_User|Master_Port|Slave_IO_Running|Slave_SQL_Running|Seconds_Behind_Master|Master_Server_Id|Read_Master_Log_Pos|Exec_Master_Log_Pos'|awk '{print $2}'|xargs echo|sed 's/[[:space:]]/,/g'"
-		slave_string := execCommand(slave_cmd)
-		slave_string = strings.Replace(slave_string, "\n", "", -1)
-		slave_result := strings.Split(slave_string, ",")
-		if slave_result[0] == "" {
-			ss.Master_Host = ""
+		subordinate_cmd := "mysql -u" + info["username"].(string) + " -p" + info["password"].(string) + " --host=" + info["host"].(string) + " --socket=" + info["socket"].(string) + " --port=" + info["port"].(string) + " -e 'show subordinate status\\G'|grep -E -w 'Main_Host|Main_User|Main_Port|Subordinate_IO_Running|Subordinate_SQL_Running|Seconds_Behind_Main|Main_Server_Id|Read_Main_Log_Pos|Exec_Main_Log_Pos'|awk '{print $2}'|xargs echo|sed 's/[[:space:]]/,/g'"
+		subordinate_string := execCommand(subordinate_cmd)
+		subordinate_string = strings.Replace(subordinate_string, "\n", "", -1)
+		subordinate_result := strings.Split(subordinate_string, ",")
+		if subordinate_result[0] == "" {
+			ss.Main_Host = ""
 		} else {
-			ss.Master_Host = slave_result[0]
-			ss.Master_User = slave_result[1]
-			ss.Master_Port = slave_result[2]
-			ss.Slave_IO_Running = slave_result[4]
-			ss.Slave_SQL_Running = slave_result[5]
-			ss.Master_Server_Id = slave_result[8]
+			ss.Main_Host = subordinate_result[0]
+			ss.Main_User = subordinate_result[1]
+			ss.Main_Port = subordinate_result[2]
+			ss.Subordinate_IO_Running = subordinate_result[4]
+			ss.Subordinate_SQL_Running = subordinate_result[5]
+			ss.Main_Server_Id = subordinate_result[8]
 		}
 		// fmt.Println(semi_cmd)
 		// fmt.Println(semi_result)
@@ -687,37 +687,37 @@ func createCommand(info map[string]interface{}, count int) basic {
 		}
 		// fmt.Println(semi_cmd)
 		// fmt.Println(semi_result)
-		ss.Rpl_semi_sync_master_net_avg_wait_time, _ = strconv.Atoi(semi_result[1])
-		ss.Rpl_semi_sync_master_no_times, _ = strconv.Atoi(semi_result[4])
-		ss.Rpl_semi_sync_master_no_tx, _ = strconv.Atoi(semi_result[5])
-		// ss.Rpl_semi_sync_master_status = semi_result[6]
-		ss.Rpl_semi_sync_master_tx_avg_wait_time, _ = strconv.Atoi(semi_result[8])
-		ss.Rpl_semi_sync_master_wait_sessions, _ = strconv.Atoi(semi_result[12])
-		ss.Rpl_semi_sync_master_yes_tx, _ = strconv.Atoi(semi_result[13])
-		// ss.Rpl_semi_sync_slave_status = semi_result[14]
+		ss.Rpl_semi_sync_main_net_avg_wait_time, _ = strconv.Atoi(semi_result[1])
+		ss.Rpl_semi_sync_main_no_times, _ = strconv.Atoi(semi_result[4])
+		ss.Rpl_semi_sync_main_no_tx, _ = strconv.Atoi(semi_result[5])
+		// ss.Rpl_semi_sync_main_status = semi_result[6]
+		ss.Rpl_semi_sync_main_tx_avg_wait_time, _ = strconv.Atoi(semi_result[8])
+		ss.Rpl_semi_sync_main_wait_sessions, _ = strconv.Atoi(semi_result[12])
+		ss.Rpl_semi_sync_main_yes_tx, _ = strconv.Atoi(semi_result[13])
+		// ss.Rpl_semi_sync_subordinate_status = semi_result[14]
 	}
 
-	// slave status
-	if info["slave"] == true {
-		slave_cmd := "mysql -u" + info["username"].(string) + " -p" + info["password"].(string) + " --host=" + info["host"].(string) + " --socket=" + info["socket"].(string) + " --port=" + info["port"].(string) + " -e 'show slave status\\G'|grep -E -w 'Master_Host|Master_User|Master_Port|Slave_IO_Running|Slave_SQL_Running|Seconds_Behind_Master|Master_Server_Id|Read_Master_Log_Pos|Exec_Master_Log_Pos'|awk '{print $2}'|xargs echo|sed 's/[[:space:]]/,/g'"
-		slave_string := execCommand(slave_cmd)
-		slave_string = strings.Replace(slave_string, "\n", "", -1)
-		slave_result := strings.Split(slave_string, ",")
-		if slave_result[0] == "" {
-			fmt.Println(Colorize("该主机Mysql不是Slave端", red, "", "", "y"))
+	// subordinate status
+	if info["subordinate"] == true {
+		subordinate_cmd := "mysql -u" + info["username"].(string) + " -p" + info["password"].(string) + " --host=" + info["host"].(string) + " --socket=" + info["socket"].(string) + " --port=" + info["port"].(string) + " -e 'show subordinate status\\G'|grep -E -w 'Main_Host|Main_User|Main_Port|Subordinate_IO_Running|Subordinate_SQL_Running|Seconds_Behind_Main|Main_Server_Id|Read_Main_Log_Pos|Exec_Main_Log_Pos'|awk '{print $2}'|xargs echo|sed 's/[[:space:]]/,/g'"
+		subordinate_string := execCommand(subordinate_cmd)
+		subordinate_string = strings.Replace(subordinate_string, "\n", "", -1)
+		subordinate_result := strings.Split(subordinate_string, ",")
+		if subordinate_result[0] == "" {
+			fmt.Println(Colorize("该主机Mysql不是Subordinate端", red, "", "", "y"))
 			os.Exit(1)
 		}
 		// fmt.Println(semi_cmd)
 		// fmt.Println(semi_result)
-		// ss.Master_Host = slave_result[0]
-		// ss.Master_User = slave_result[1]
-		// ss.Master_Port = slave_result[2]
-		ss.Read_Master_Log_Pos, _ = strconv.Atoi(slave_result[3])
-		// ss.Slave_IO_Running = slave_result[4]
-		// ss.Slave_SQL_Running = slave_result[5]
-		ss.Exec_Master_Log_Pos, _ = strconv.Atoi(slave_result[6])
-		ss.Seconds_Behind_Master, _ = strconv.Atoi(slave_result[7])
-		// ss.Master_Server_Id = slave_result[8]
+		// ss.Main_Host = subordinate_result[0]
+		// ss.Main_User = subordinate_result[1]
+		// ss.Main_Port = subordinate_result[2]
+		ss.Read_Main_Log_Pos, _ = strconv.Atoi(subordinate_result[3])
+		// ss.Subordinate_IO_Running = subordinate_result[4]
+		// ss.Subordinate_SQL_Running = subordinate_result[5]
+		ss.Exec_Main_Log_Pos, _ = strconv.Atoi(subordinate_result[6])
+		ss.Seconds_Behind_Main, _ = strconv.Atoi(subordinate_result[7])
+		// ss.Main_Server_Id = subordinate_result[8]
 	}
 
 	return ss
@@ -960,24 +960,24 @@ func gotNumber(flag_info map[string]interface{}, first basic, second basic, coun
 		pic += Colorize("  max_connect_errors", purple, "", "", "") + "[" + second.var_max_connect_errors + "]" + Colorize(" max_connections", purple, "", "", "") + "[" + second.var_max_connections + "]" + Colorize(" max_user_connections", purple, "", "", "") + "[" + second.var_max_user_connections + "]" + Colorize(" max_used_connections", purple, "", "", "") + "[" + tmp_used + "]" + "\n"
 		pic += Colorize("  open_files_limit", purple, "", "", "") + "[" + second.var_open_files_limit + "]" + Colorize(" table_definition_cache", purple, "", "", "") + "[" + second.var_table_definition_cache + "]" + Colorize(" Aborted_connects", purple, "", "", "") + "[" + second.Aborted_connects + "]" + Colorize(" Aborted_clients", purple, "", "", "") + "[" + second.Aborted_clients + "]" + "\n"
 		pic += Colorize("  Binlog_cache_disk_use", purple, "", "", "") + "[" + second.Binlog_cache_disk_use + "]" + Colorize(" Select_scan", purple, "", "", "") + "[" + second.Select_scan + "]" + Colorize(" Select_full_join", purple, "", "", "") + "[" + second.Select_full_join + "]" + Colorize(" Slow_queries", purple, "", "", "") + "[" + second.Slow_queries + "]\n"
-		if second.Rpl_semi_sync_master_status != "" {
-			pic += Colorize("  Rpl_semi_sync_master_status", purple, "", "", "") + "[" + second.Rpl_semi_sync_master_status + "]" + Colorize(" Rpl_semi_sync_slave_status", purple, "", "", "") + "[" + second.Rpl_semi_sync_slave_status + "]" + Colorize(" rpl_semi_sync_master_timeout", purple, "", "", "") + "[" + second.rpl_semi_sync_master_timeout + "]\n"
+		if second.Rpl_semi_sync_main_status != "" {
+			pic += Colorize("  Rpl_semi_sync_main_status", purple, "", "", "") + "[" + second.Rpl_semi_sync_main_status + "]" + Colorize(" Rpl_semi_sync_subordinate_status", purple, "", "", "") + "[" + second.Rpl_semi_sync_subordinate_status + "]" + Colorize(" rpl_semi_sync_main_timeout", purple, "", "", "") + "[" + second.rpl_semi_sync_main_timeout + "]\n"
 		}
-		if second.Master_Host != "" {
-			pic += Colorize("  Master_Host", purple, "", "", "") + "[" + second.Master_Host + "]" + Colorize(" Master_User", purple, "", "", "") + "[" + second.Master_User + "]" + Colorize(" Master_Port", purple, "", "", "") + "[" + second.Master_Port + "]" + Colorize(" Master_Server_Id", purple, "", "", "") + "[" + second.Master_Server_Id + "]\n"
+		if second.Main_Host != "" {
+			pic += Colorize("  Main_Host", purple, "", "", "") + "[" + second.Main_Host + "]" + Colorize(" Main_User", purple, "", "", "") + "[" + second.Main_User + "]" + Colorize(" Main_Port", purple, "", "", "") + "[" + second.Main_Port + "]" + Colorize(" Main_Server_Id", purple, "", "", "") + "[" + second.Main_Server_Id + "]\n"
 			io := ""
 			sql := ""
-			if second.Slave_IO_Running != "Yes" {
+			if second.Subordinate_IO_Running != "Yes" {
 				io = Colorize("No", red, "", "", "y")
 			} else {
 				io = Colorize("Yes", green, "", "", "")
 			}
-			if second.Slave_SQL_Running != "Yes" {
+			if second.Subordinate_SQL_Running != "Yes" {
 				sql = Colorize("No", red, "", "", "y")
 			} else {
 				sql = Colorize("Yes", green, "", "", "")
 			}
-			pic += Colorize("  Slave_IO_Running", purple, "", "", "") + "[" + io + "]" + Colorize(" Slave_SQL_Running", purple, "", "", "") + "[" + sql + "]\n"
+			pic += Colorize("  Subordinate_IO_Running", purple, "", "", "") + "[" + io + "]" + Colorize(" Subordinate_SQL_Running", purple, "", "", "") + "[" + sql + "]\n"
 		}
 		pic += Colorize("  table_open_cache", purple, "", "", "") + "[" + second.var_table_open_cache + "]" + Colorize(" thread_cache_size", purple, "", "", "") + "[" + second.var_thread_cache_size + "]" + Colorize(" Opened_tables", purple, "", "", "") + "[" + second.Opened_tables + "]" + Colorize(" Created_tmp_disk_tables_ratio", purple, "", "", "") + "[" + tmptable + "]\n\n"
 
@@ -1524,60 +1524,60 @@ func gotNumber(flag_info map[string]interface{}, first basic, second basic, coun
 		if count == 0 {
 			data_detail += Colorize("100ms 100ms 1000 1000  1000", "", "", "", "") + Colorize("|", green, "", "", "")
 		} else {
-			// fmt.Printf("1 %d 2 %d 3 %d 4 %d 5 %d", second.Rpl_semi_sync_master_net_avg_wait_time, second.Rpl_semi_sync_master_tx_avg_wait_time, second.Rpl_semi_sync_master_no_tx, second.Rpl_semi_sync_master_yes_tx, second.Rpl_semi_sync_master_no_times)
-			if second.Rpl_semi_sync_master_net_avg_wait_time < 1000 {
-				data_detail += Colorize(strings.Repeat(" ", 3-len(strconv.Itoa(second.Rpl_semi_sync_master_net_avg_wait_time)))+strconv.Itoa(second.Rpl_semi_sync_master_net_avg_wait_time)+"us", "", "", "", "")
-			} else if second.Rpl_semi_sync_master_net_avg_wait_time >= 1000 && second.Rpl_semi_sync_master_net_avg_wait_time/1000/1000 <= 1 {
-				data_detail += Colorize(strings.Repeat(" ", 3-len(strconv.Itoa(second.Rpl_semi_sync_master_net_avg_wait_time/1000)))+strconv.Itoa(second.Rpl_semi_sync_master_net_avg_wait_time/1000)+"ms", "", "", "", "")
-			} else if second.Rpl_semi_sync_master_net_avg_wait_time/1000/1000 > 1 {
-				data_detail += Colorize(strings.Repeat(" ", 4-len(strconv.Itoa(second.Rpl_semi_sync_master_net_avg_wait_time/1000/1000)))+strconv.Itoa(second.Rpl_semi_sync_master_net_avg_wait_time/1000/1000)+"s", red, "", "", "y")
+			// fmt.Printf("1 %d 2 %d 3 %d 4 %d 5 %d", second.Rpl_semi_sync_main_net_avg_wait_time, second.Rpl_semi_sync_main_tx_avg_wait_time, second.Rpl_semi_sync_main_no_tx, second.Rpl_semi_sync_main_yes_tx, second.Rpl_semi_sync_main_no_times)
+			if second.Rpl_semi_sync_main_net_avg_wait_time < 1000 {
+				data_detail += Colorize(strings.Repeat(" ", 3-len(strconv.Itoa(second.Rpl_semi_sync_main_net_avg_wait_time)))+strconv.Itoa(second.Rpl_semi_sync_main_net_avg_wait_time)+"us", "", "", "", "")
+			} else if second.Rpl_semi_sync_main_net_avg_wait_time >= 1000 && second.Rpl_semi_sync_main_net_avg_wait_time/1000/1000 <= 1 {
+				data_detail += Colorize(strings.Repeat(" ", 3-len(strconv.Itoa(second.Rpl_semi_sync_main_net_avg_wait_time/1000)))+strconv.Itoa(second.Rpl_semi_sync_main_net_avg_wait_time/1000)+"ms", "", "", "", "")
+			} else if second.Rpl_semi_sync_main_net_avg_wait_time/1000/1000 > 1 {
+				data_detail += Colorize(strings.Repeat(" ", 4-len(strconv.Itoa(second.Rpl_semi_sync_main_net_avg_wait_time/1000/1000)))+strconv.Itoa(second.Rpl_semi_sync_main_net_avg_wait_time/1000/1000)+"s", red, "", "", "y")
 			}
 
-			if second.Rpl_semi_sync_master_tx_avg_wait_time < 1000 {
-				data_detail += Colorize(strings.Repeat(" ", 4-len(strconv.Itoa(second.Rpl_semi_sync_master_tx_avg_wait_time)))+strconv.Itoa(second.Rpl_semi_sync_master_tx_avg_wait_time)+"us", "", "", "", "")
-			} else if second.Rpl_semi_sync_master_tx_avg_wait_time > 1000 && second.Rpl_semi_sync_master_tx_avg_wait_time/1000/1000 <= 1 {
-				data_detail += Colorize(strings.Repeat(" ", 4-len(strconv.Itoa(second.Rpl_semi_sync_master_tx_avg_wait_time/1000)))+strconv.Itoa(second.Rpl_semi_sync_master_tx_avg_wait_time/1000)+"ms", "", "", "", "")
-			} else if second.Rpl_semi_sync_master_tx_avg_wait_time/1000/1000 > 1 {
-				data_detail += Colorize(strings.Repeat(" ", 5-len(strconv.Itoa(second.Rpl_semi_sync_master_tx_avg_wait_time/1000/1000)))+strconv.Itoa(second.Rpl_semi_sync_master_tx_avg_wait_time/1000/1000)+"s", red, "", "", "y")
+			if second.Rpl_semi_sync_main_tx_avg_wait_time < 1000 {
+				data_detail += Colorize(strings.Repeat(" ", 4-len(strconv.Itoa(second.Rpl_semi_sync_main_tx_avg_wait_time)))+strconv.Itoa(second.Rpl_semi_sync_main_tx_avg_wait_time)+"us", "", "", "", "")
+			} else if second.Rpl_semi_sync_main_tx_avg_wait_time > 1000 && second.Rpl_semi_sync_main_tx_avg_wait_time/1000/1000 <= 1 {
+				data_detail += Colorize(strings.Repeat(" ", 4-len(strconv.Itoa(second.Rpl_semi_sync_main_tx_avg_wait_time/1000)))+strconv.Itoa(second.Rpl_semi_sync_main_tx_avg_wait_time/1000)+"ms", "", "", "", "")
+			} else if second.Rpl_semi_sync_main_tx_avg_wait_time/1000/1000 > 1 {
+				data_detail += Colorize(strings.Repeat(" ", 5-len(strconv.Itoa(second.Rpl_semi_sync_main_tx_avg_wait_time/1000/1000)))+strconv.Itoa(second.Rpl_semi_sync_main_tx_avg_wait_time/1000/1000)+"s", red, "", "", "y")
 			}
 
-			if second.Rpl_semi_sync_master_no_tx > 1 {
-				data_detail += Colorize(strings.Repeat(" ", 5-len(strconv.Itoa(second.Rpl_semi_sync_master_no_tx)))+strconv.Itoa(second.Rpl_semi_sync_master_no_tx), red, "", "", "y")
+			if second.Rpl_semi_sync_main_no_tx > 1 {
+				data_detail += Colorize(strings.Repeat(" ", 5-len(strconv.Itoa(second.Rpl_semi_sync_main_no_tx)))+strconv.Itoa(second.Rpl_semi_sync_main_no_tx), red, "", "", "y")
 			} else {
-				data_detail += Colorize(strings.Repeat(" ", 5-len(strconv.Itoa(second.Rpl_semi_sync_master_no_tx)))+strconv.Itoa(second.Rpl_semi_sync_master_no_tx), "", "", "", "y")
+				data_detail += Colorize(strings.Repeat(" ", 5-len(strconv.Itoa(second.Rpl_semi_sync_main_no_tx)))+strconv.Itoa(second.Rpl_semi_sync_main_no_tx), "", "", "", "y")
 			}
 
-			data_detail += Colorize(strings.Repeat(" ", 5-len(changeUntils(second.Rpl_semi_sync_master_yes_tx)))+changeUntils(second.Rpl_semi_sync_master_yes_tx), "", "", "", "y")
+			data_detail += Colorize(strings.Repeat(" ", 5-len(changeUntils(second.Rpl_semi_sync_main_yes_tx)))+changeUntils(second.Rpl_semi_sync_main_yes_tx), "", "", "", "y")
 
-			if second.Rpl_semi_sync_master_no_times > 1 {
-				data_detail += Colorize(strings.Repeat(" ", 6-len(strconv.Itoa(second.Rpl_semi_sync_master_no_times)))+strconv.Itoa(second.Rpl_semi_sync_master_no_times), red, "", "", "y")
+			if second.Rpl_semi_sync_main_no_times > 1 {
+				data_detail += Colorize(strings.Repeat(" ", 6-len(strconv.Itoa(second.Rpl_semi_sync_main_no_times)))+strconv.Itoa(second.Rpl_semi_sync_main_no_times), red, "", "", "y")
 			} else {
-				data_detail += Colorize(strings.Repeat(" ", 6-len(strconv.Itoa(second.Rpl_semi_sync_master_no_times)))+strconv.Itoa(second.Rpl_semi_sync_master_no_times), "", "", "", "y")
+				data_detail += Colorize(strings.Repeat(" ", 6-len(strconv.Itoa(second.Rpl_semi_sync_main_no_times)))+strconv.Itoa(second.Rpl_semi_sync_main_no_times), "", "", "", "y")
 			}
 			data_detail += Colorize("|", green, "", "", "")
 		}
 	}
 
 	//threads ------threads------
-	if flag_info["slave"] == true {
-		title_summit += Colorize("---------------SlaveStatus------------- ", green, blue, "", "")
+	if flag_info["subordinate"] == true {
+		title_summit += Colorize("---------------SubordinateStatus------------- ", green, blue, "", "")
 		title_detail += Colorize("ReadMLP ExecMLP   chkRE   SecBM|", green, "", "y", "")
 		if count == 0 {
 			data_detail += Colorize(" 1066312331  1066312331 6312331 6312331", "", "", "", "") + Colorize("|", green, "", "", "")
 		} else {
 
-			checkNum := second.Read_Master_Log_Pos - second.Exec_Master_Log_Pos
+			checkNum := second.Read_Main_Log_Pos - second.Exec_Main_Log_Pos
 
-			data_detail += Colorize(strings.Repeat(" ", 11-len(strconv.Itoa(second.Read_Master_Log_Pos)))+strconv.Itoa(second.Read_Master_Log_Pos), "", "", "", "")
+			data_detail += Colorize(strings.Repeat(" ", 11-len(strconv.Itoa(second.Read_Main_Log_Pos)))+strconv.Itoa(second.Read_Main_Log_Pos), "", "", "", "")
 
-			data_detail += Colorize(strings.Repeat(" ", 12-len(strconv.Itoa(second.Exec_Master_Log_Pos)))+strconv.Itoa(second.Exec_Master_Log_Pos), "", "", "", "")
+			data_detail += Colorize(strings.Repeat(" ", 12-len(strconv.Itoa(second.Exec_Main_Log_Pos)))+strconv.Itoa(second.Exec_Main_Log_Pos), "", "", "", "")
 
 			data_detail += Colorize(strings.Repeat(" ", 8-len(strconv.Itoa(checkNum)))+strconv.Itoa(checkNum), "", "", "", "")
 
-			if second.Seconds_Behind_Master > 300 {
-				data_detail += Colorize(strings.Repeat(" ", 8-len(strconv.Itoa(second.Seconds_Behind_Master)))+strconv.Itoa(second.Seconds_Behind_Master), red, "", "", "")
+			if second.Seconds_Behind_Main > 300 {
+				data_detail += Colorize(strings.Repeat(" ", 8-len(strconv.Itoa(second.Seconds_Behind_Main)))+strconv.Itoa(second.Seconds_Behind_Main), red, "", "", "")
 			} else {
-				data_detail += Colorize(strings.Repeat(" ", 8-len(strconv.Itoa(second.Seconds_Behind_Master)))+strconv.Itoa(second.Seconds_Behind_Master), green, "", "", "")
+				data_detail += Colorize(strings.Repeat(" ", 8-len(strconv.Itoa(second.Seconds_Behind_Main)))+strconv.Itoa(second.Seconds_Behind_Main), green, "", "", "")
 			}
 
 			data_detail += Colorize("|", green, "", "", "")
